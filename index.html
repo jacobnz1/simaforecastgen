@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>South Island Meteorological Agency</title>
+    
+    <!-- ADSENSE -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8263002259646510" crossorigin="anonymous"></script>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CORE THEME --- */
+        :root {
+            --primary: #0f172a; --accent: #0ea5e9; --bg: #f1f5f9; 
+            --text: #334155; --card-bg: #ffffff; --border: #e2e8f0;
+            --risk-low: #22c55e; --risk-mod: #f59e0b; --risk-high: #ef4444; --risk-sev: #7e22ce;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding-top: 70px; line-height: 1.5; }
+
+        /* --- UTILS --- */
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        .page { display: none; animation: fade 0.3s ease; } .page.active { display: block; }
+        @keyframes fade { from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);} }
+        .ad-box { background: #e2e8f0; padding: 20px; text-align: center; margin: 30px 0; border-radius: 8px; color: #94a3b8; font-size: 0.8rem; border: 1px dashed #cbd5e1; }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: white; }
+        .bg-Slight { background: var(--risk-low); } .bg-Enhanced { background: var(--risk-mod); } .bg-High { background: var(--risk-high); } .bg-Critical { background: var(--risk-sev); } .bg-Special { background: var(--accent); }
+
+        /* --- NAV --- */
+        #alert-banner { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 40px; background: var(--risk-high); color: white; z-index: 1002; text-align: center; line-height: 40px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
+        body.has-alert { padding-top: 110px; } body.has-alert header { top: 40px; } body.has-alert .m-menu { top: 110px; height: calc(100vh - 110px); }
+        header { background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); position: fixed; top: 0; width: 100%; z-index: 1000; height: 70px; }
+        .nav-wrap { max-width: 1100px; margin: 0 auto; padding: 0 20px; height: 100%; display: flex; align-items: center; justify-content: space-between; }
+        .brand img { height: 45px; width: auto; }
+        .d-menu { display: none; gap: 25px; } @media(min-width: 900px) { .d-menu { display: flex; } }
+        .nav-link { cursor: pointer; font-weight: 600; font-size: 14px; color: var(--text); text-decoration: none; } .nav-link:hover { color: var(--accent); }
+        .m-toggle { display: block; background: none; border: none; font-size: 1.5rem; cursor: pointer; } @media(min-width: 900px) { .m-toggle { display: none; } }
+        .m-menu { position: fixed; top: 70px; right: 0; width: 250px; height: 100vh; background: white; transform: translateX(100%); transition: 0.3s; padding: 20px; border-left: 1px solid var(--border); z-index: 999; display: flex; flex-direction: column; gap: 15px; } .m-menu.open { transform: translateX(0); }
+
+        /* --- COMPONENTS --- */
+        
+        /* Alerts */
+        .alert-card { background: white; border: 1px solid var(--border); border-left: 5px solid var(--risk-mod); border-radius: 8px; margin-bottom: 20px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+        .alert-card.crit { border-left-color: var(--risk-high); }
+        .ac-head { padding: 15px 20px; background: #f8fafc; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .ac-body { padding: 20px; }
+        .ac-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; font-size: 0.9rem; }
+        .ac-label { font-weight: 700; color: #64748b; font-size: 0.75rem; text-transform: uppercase; display: block; margin-bottom: 4px; }
+
+        /* Forecast Cards (Storm/Snow) */
+        .fc-wrap { background: white; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.04); }
+        .fc-hero { padding: 25px; background: linear-gradient(to right, #0f172a, #1e293b); color: white; }
+        .fc-map { width: 100%; height: auto; display: block; border-bottom: 1px solid var(--border); }
+        .fc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; padding: 25px; }
+        .fc-region { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid var(--border); }
+        .risk-tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }
+        
+        /* SWO */
+        .swo-card { display: flex; gap: 20px; background: white; border: 1px solid var(--border); padding: 20px; border-radius: 10px; margin-bottom: 20px; align-items: start; }
+        @media(max-width: 600px) { .swo-card { flex-direction: column; } }
+        .swo-img { width: 120px; height: 120px; object-fit: cover; border-radius: 8px; background: #e2e8f0; flex-shrink: 0; }
+        
+        /* News */
+        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .news-card { background: white; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: transform 0.2s; cursor: pointer; display: flex; flex-direction: column; }
+        .news-card:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
+        .nc-img { height: 180px; background: #e2e8f0; background-size: cover; background-position: center; }
+        .nc-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
+        .nc-date { font-size: 0.8rem; color: #94a3b8; margin-bottom: 8px; }
+        .nc-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 10px; line-height: 1.3; color: var(--primary); }
+        .nc-link { margin-top: auto; font-size: 0.9rem; color: var(--accent); font-weight: 600; }
+
+        /* Article View */
+        .article-view { background: white; border-radius: 12px; border: 1px solid var(--border); padding: 40px; margin-top: 20px; }
+        .art-header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .art-img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 12px; margin-bottom: 30px; }
+        .art-body { font-size: 1.1rem; line-height: 1.8; color: #334155; }
+        .art-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 15px 0; }
+        .back-btn { display: inline-block; margin-bottom: 20px; color: #64748b; text-decoration: none; font-weight: 600; cursor: pointer; }
+
+        /* Drought */
+        .dc-card { border-left: 5px solid #f59e0b; background: #fff; margin-bottom: 15px; padding: 15px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+    <div id="alert-banner" onclick="app.router('#/alerts')">⚠️ Active Alerts - Click Here</div>
+
+    <header>
+        <div class="nav-wrap">
+            <div class="brand" onclick="app.router('#/')"><img src="logo.png" alt="SIMA" onerror="this.style.display='none'"></div>
+            <nav class="d-menu">
+                <a onclick="app.router('#/')" class="nav-link">Home</a>
+                <a onclick="app.router('#/outlook')" class="nav-link">Outlook</a>
+                <a onclick="app.router('#/alerts')" class="nav-link">Alerts</a>
+                <a onclick="app.router('#/stormcast')" class="nav-link">StormCast</a>
+                <a onclick="app.router('#/snowcast')" class="nav-link">SnowCast</a>
+                <a onclick="app.router('#/drought')" class="nav-link">DroughtCast</a>
+                <a onclick="app.router('#/radar')" class="nav-link">Radar</a>
+            </nav>
+            <button class="m-toggle" onclick="document.getElementById('mm').classList.toggle('open')">☰</button>
+        </div>
+    </header>
+
+    <div class="m-menu" id="mm">
+        <a onclick="app.router('#/')" class="nav-link">Home</a>
+        <a onclick="app.router('#/outlook')" class="nav-link">Outlook</a>
+        <a onclick="app.router('#/alerts')" class="nav-link">Alerts</a>
+        <a onclick="app.router('#/stormcast')" class="nav-link">StormCast</a>
+        <a onclick="app.router('#/snowcast')" class="nav-link">SnowCast</a>
+        <a onclick="app.router('#/drought')" class="nav-link">DroughtCast</a>
+        <a onclick="app.router('#/radar')" class="nav-link">Radar</a>
+    </div>
+
+    <main class="container">
+        
+        <!-- HOME -->
+        <section id="page-home" class="page">
+            <div id="si-weather-root" style="height:600px; border-radius:16px; overflow:hidden; border:1px solid #e2e8f0; position:relative;">
+                <!-- Leaflet Map Container -->
+                <div id="si-map" style="height:100%; width:100%;"></div>
+                <div style="position:absolute; bottom:10px; left:10px; background:white; padding:5px 10px; border-radius:4px; font-size:0.8rem; z-index:999;">Tap markers for Forecast</div>
+            </div>
+            
+            <div class="ad-box">[AdSense Space]</div>
+            
+            <h2 style="margin-bottom:20px; border-left:4px solid var(--primary); padding-left:15px;">Latest News & Analysis</h2>
+            <div id="news-feed" class="news-grid"><p>Loading News...</p></div>
+        </section>
+
+        <!-- NEWS DETAIL VIEW -->
+        <section id="page-article" class="page">
+            <a onclick="app.router('#/')" class="back-btn">&larr; Back to Home</a>
+            <div id="article-content" class="article-view">Loading...</div>
+            <div class="ad-box">[AdSense Space]</div>
+        </section>
+
+        <!-- ALERTS -->
+        <section id="page-alerts" class="page">
+            <div style="text-align:center; margin-bottom:40px; padding-bottom:20px; border-bottom:1px solid #e2e8f0;">
+                <h1 style="color:#ef4444; font-size:2rem;">Significant Weather Alerts</h1>
+                <p id="alerts-overview" style="color:#64748b; max-width:600px; margin:10px auto;">Checking for active warnings...</p>
+            </div>
+            <div id="alerts-feed"></div>
+            <div class="ad-box">[AdSense]</div>
+        </section>
+
+        <!-- OUTLOOK -->
+        <section id="page-outlook" class="page">
+            <h1 style="margin-bottom:10px;">Significant Weather Outlook</h1>
+            <div style="background:white; padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:30px;">
+                <h3 id="swo-title">Loading...</h3>
+                <p id="swo-summary" style="color:#64748b; margin-top:5px;"></p>
+            </div>
+            <div id="outlook-container"></div>
+            <div class="ad-box">[AdSense]</div>
+        </section>
+
+        <!-- STORMCAST -->
+        <section id="page-storm" class="page">
+            <div style="text-align:center; margin-bottom:30px;">
+                <h1 style="color:#0f172a;">StormCast</h1>
+                <p>Convective Outlooks & Thunderstorm Risks</p>
+            </div>
+            <div id="storm-feed"></div>
+            <div class="ad-box">[AdSense]</div>
+        </section>
+
+        <!-- SNOWCAST -->
+        <section id="page-snow" class="page">
+            <div style="background:#f8fafc; padding:30px; border-radius:12px; border:1px solid #e2e8f0; margin-bottom:30px; text-align:center;">
+                <h1 id="sc-main-title">SnowCast</h1>
+                <p id="sc-main-overview" style="color:#64748b; margin-top:10px;">Checking latest guidance...</p>
+            </div>
+            <div id="snow-feed"></div>
+            <div class="ad-box">[AdSense]</div>
+        </section>
+
+        <!-- DROUGHT -->
+        <section id="page-drought" class="page">
+            <h1>DroughtCast</h1>
+            <div style="background:white; padding:20px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:20px;">
+                <h3 id="dc-title">--</h3>
+                <p id="dc-sum">--</p>
+            </div>
+            <div id="dc-feed"></div>
+            <div class="ad-box">[AdSense]</div>
+        </section>
+
+        <!-- RADAR -->
+        <section id="page-radar" class="page">
+            <h1>Maps & Radar</h1>
+            <iframe src="https://embed.windy.com/embed2.html?lat=-43.5&lon=171.5&zoom=6&level=surface&overlay=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" style="width:100%; height:70vh; border:none; border-radius:12px;"></iframe>
+        </section>
+
+    </main>
+
+    <!-- LIGHTBOX -->
+    <div id="lb" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center;" onclick="this.style.display='none'">
+        <img id="lb-img" style="max-width:95%; max-height:95%; border-radius:4px;">
+    </div>
+
+<script>
+    const CONFIG = { news:'69238031d0ea881f40fb9d04', sig:'68d8c3c6d0ea881f408d7a5c', storm:'68d8cdac43b1c97be9528f9b', snow:'68e0738e43b1c97be9599eb1', alerts:'68db095dae596e708f0072be', drought:'68d9fc07d0ea881f408e8e5b', key: '$2a$10$/h3xvps5BAmoU8dJigw8T.qYg3eoESVLwjXbX9aHmb85Y96cExsCe' };
+    const getFresh = u => u + (u.includes('?')?'&':'?') + 't=' + Date.now();
+    
+    // --- MAP SETUP ---
+    let map; const towns = [
+      {name:"Nelson",lat:-41.27,lng:173.28},{name:"Blenheim",lat:-41.51,lng:173.96},{name:"Westport",lat:-41.75,lng:171.60},{name:"Greymouth",lat:-42.45,lng:171.20},
+      {name:"Kaikoura",lat:-42.40,lng:173.68},{name:"Christchurch",lat:-43.53,lng:172.63},{name:"Timaru",lat:-44.39,lng:171.25},{name:"Mt Cook",lat:-43.73,lng:170.10},
+      {name:"Queenstown",lat:-45.03,lng:168.66},{name:"Dunedin",lat:-45.87,lng:170.50},{name:"Invercargill",lat:-46.41,lng:168.35}
+    ];
+
+    const app = {
+        init: () => { 
+            app.fetchData(); 
+            window.addEventListener('hashchange', app.route);
+            window.addEventListener('load', app.route);
+            app.initMap();
+        },
+        route: () => {
+            const h = window.location.hash || '#/';
+            let id = 'page-home';
+            if(h.includes('article')) { id='page-article'; app.loadArticle(h.split('/').pop()); }
+            else if(h.includes('outlook')) id='page-outlook';
+            else if(h.includes('alerts')) id='page-alerts';
+            else if(h.includes('storm')) id='page-storm';
+            else if(h.includes('snow')) id='page-snow';
+            else if(h.includes('drought')) id='page-drought';
+            else if(h.includes('radar')) id='page-radar';
+            
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('mm').classList.remove('open');
+            window.scrollTo(0,0);
+        },
+        router: (p) => window.location.hash = p,
+        
+        initMap: () => {
+            if(document.getElementById('si-map') && !map) {
+                map = L.map('si-map', {zoomControl:false}).setView([-43.5, 171], 6);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+                towns.forEach(t => {
+                    L.circleMarker([t.lat, t.lng], {color:'#0f172a', fillColor:'#fff', fillOpacity:1, radius:6})
+                     .addTo(map).bindPopup(`<b>${t.name}</b><br>Forecast loading...`).on('click', (e) => {
+                         // Simple forecast fetch for map popups
+                         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${t.lat}&longitude=${t.lng}&current=temperature_2m,weather_code&timezone=auto`)
+                         .then(r=>r.json()).then(d=>{
+                             e.target.setPopupContent(`<b>${t.name}</b><br>${d.current.temperature_2m}°C <br> conditions`).openPopup();
+                         });
+                     });
+                });
+            }
+        },
+
+        fetchData: async () => {
+            const now = new Date();
+
+            // 1. ALERTS
+            fetch(getFresh(`https://api.jsonbin.io/v3/b/${CONFIG.alerts}/latest`), {headers:{'X-Master-Key':CONFIG.key}}).then(r=>r.json()).then(d => {
+                const data = d.record;
+                // Filter Expired Alerts
+                const active = (data.blocks||[]).filter(b => new Date(b.endTime) > now);
+                
+                document.getElementById('alerts-overview').innerText = data.globalInfo?.overview || "";
+                const c = document.getElementById('alerts-feed'); c.innerHTML = '';
+                
+                if(active.length > 0) {
+                    document.getElementById('alert-banner').style.display = 'block';
+                    document.getElementById('alert-banner').innerHTML = `⚠️ ${active.length} Active Weather Alerts`;
+                    document.body.classList.add('has-alert');
+                    active.forEach(b => {
+                        c.innerHTML += `
+                        <div class="alert-card ${b.type==='Critical'?'crit':''}">
+                            <div class="ac-head">
+                                <span style="font-weight:800; font-size:1.1rem; color:${b.type==='Critical'?'#ef4444':'#f59e0b'}">${b.weatherType}</span>
+                                <span class="badge bg-${b.type}">${b.type} Risk</span>
+                            </div>
+                            <div class="ac-body">
+                                <div class="ac-meta">
+                                    <div><span class="ac-label">Affected Regions</span>${b.regions.join(', ')}</div>
+                                    <div><span class="ac-label">Valid Until</span>${new Date(b.endTime).toLocaleString()}</div>
+                                </div>
+                                <p style="white-space:pre-line;">${b.summary}</p>
+                            </div>
+                        </div>`;
+                    });
+                } else {
+                    c.innerHTML = '<div style="text-align:center; padding:40px; color:#94a3b8;">No active significant weather alerts.</div>';
+                }
+            });
+
+            // 2. STORMCAST
+            fetch(getFresh(`https://api.jsonbin.io/v3/b/${CONFIG.storm}/latest`), {headers:{'X-Master-Key':CONFIG.key}}).then(r=>r.json()).then(d => {
+                const active = (d.record.outlooks||[]).filter(o => new Date(o.validUntil) > now);
+                const c = document.getElementById('storm-feed'); c.innerHTML = '';
+                if(!active.length) c.innerHTML = '<div style="text-align:center; color:#94a3b8">No active StormCast outlooks.</div>';
+                
+                active.forEach(o => {
+                    let regionsHtml = '';
+                    (o.regionalForecasts||[]).forEach(r => {
+                        regionsHtml += `
+                        <div class="fc-region">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                                <strong>${r.regionName}</strong>
+                                <span class="badge bg-${r.riskLevel}">${r.riskLevel}</span>
+                            </div>
+                            <div style="font-size:0.8rem; color:#64748b; margin-bottom:8px;">${r.timing}</div>
+                            <div class="risk-tags">${(r.risks||[]).map(k=>`<span class="badge" style="background:#cbd5e1; color:#334155;">${k}</span>`).join('')}</div>
+                            <p style="font-size:0.9rem; margin-top:8px;">${r.threats}</p>
+                        </div>`;
+                    });
+
+                    c.innerHTML += `
+                    <div class="fc-wrap">
+                        <div class="fc-hero">
+                            <h2>${o.title}</h2>
+                            <div style="font-size:0.9rem; opacity:0.9; margin-top:5px;">Valid: ${new Date(o.validFrom).toLocaleString()} &rarr; ${new Date(o.validUntil).toLocaleString()}</div>
+                            <p style="margin-top:15px; max-width:700px;">${o.overallDiscussion}</p>
+                        </div>
+                        ${o.mapUrl ? `<img src="${o.mapUrl}" class="fc-map" onclick="document.getElementById('lb-img').src=this.src;document.getElementById('lb').style.display='flex'">` : ''}
+                        <div class="fc-grid">${regionsHtml}</div>
+                    </div>`;
+                });
+            });
+
+            // 3. SNOWCAST
+            fetch(getFresh(`https://api.jsonbin.io/v3/b/${CONFIG.snow}/latest`), {headers:{'X-Master-Key':CONFIG.key}}).then(r=>r.json()).then(d => {
+                const data = d.record;
+                document.getElementById('sc-main-title').innerText = data.mainTitle || "SnowCast";
+                document.getElementById('sc-main-overview').innerText = data.overview || "";
+                
+                const active = (data.forecasts||[]).filter(f => new Date(f.validTo) > now);
+                const c = document.getElementById('snow-feed'); c.innerHTML = '';
+                
+                if(!active.length) c.innerHTML = '<div style="text-align:center; color:#94a3b8">No active SnowCast warnings.</div>';
+                
+                active.forEach(f => {
+                    c.innerHTML += `
+                    <div class="alert-card">
+                        <div class="ac-head">
+                            <strong>${f.region}</strong>
+                            <span class="badge bg-${f.riskLevel}">${f.riskLevel} Snow Risk</span>
+                        </div>
+                        <div class="ac-body">
+                            <div class="ac-meta"><div><span class="ac-label">Valid From</span>${new Date(f.validFrom).toLocaleString()}</div><div><span class="ac-label">Valid To</span>${new Date(f.validTo).toLocaleString()}</div></div>
+                            <p>${f.summary}</p>
+                        </div>
+                    </div>`;
+                });
+            });
+
+            // 4. SWO (Outlook)
+            fetch(getFresh(`https://api.jsonbin.io/v3/b/${CONFIG.sig}/latest`), {headers:{'X-Master-Key':CONFIG.key}}).then(r=>r.json()).then(d => {
+                document.getElementById('swo-title').innerText = d.record.overallTitle || "";
+                document.getElementById('swo-summary').innerText = d.record.overallSummary || "";
+                const c = document.getElementById('outlook-container'); c.innerHTML = '';
+                
+                // Filter out days that are in the past (before today 00:00)
+                const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                const active = (d.record.forecasts||[]).filter(f => new Date(f.date) >= todayStart);
+
+                active.forEach(f => {
+                    c.innerHTML += `
+                    <div class="swo-card">
+                        ${f.imageUrl ? `<img src="${f.imageUrl}" class="swo-img" onclick="document.getElementById('lb-img').src=this.src;document.getElementById('lb').style.display='flex'">` : ''}
+                        <div>
+                            <h3 style="margin-bottom:5px;">${new Date(f.date).toLocaleDateString('en-NZ', {weekday:'long', day:'numeric', month:'long'})}</h3>
+                            <span class="badge bg-${f.alertLevel}">${f.alertLevel || 'Low'} Risk</span>
+                            <p style="margin-top:10px; color:#475569;">${f.summary}</p>
+                        </div>
+                    </div>`;
+                });
+            });
+
+            // 5. NEWS (With Permalink Logic)
+            fetch(getFresh(`https://api.jsonbin.io/v3/b/${CONFIG.news}/latest`), {headers:{'X-Master-Key':CONFIG.key}}).then(r=>r.json()).then(d => {
+                window.newsData = d.record.news || []; // Store globally for article view
+                const c = document.getElementById('news-feed'); c.innerHTML = '';
+                
+                // Sort by date (newest first)
+                window.newsData.sort((a,b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
+
+                window.newsData.forEach((n, i) => {
+                    // Determine "ID" - ideally use a real ID, here using timestamp of creation if avail, or index fallback
+                    const id = n.scheduledAt ? new Date(n.scheduledAt).getTime() : i;
+                    const snip = n.content.replace(/<[^>]*>?/gm, '').substring(0, 100) + '...';
+                    
+                    c.innerHTML += `
+                    <div class="news-card" onclick="app.router('#/article/${id}')">
+                        <div class="nc-img" style="background-image:url('${n.titleImg && n.titleImg !== 'MOCK_URL' ? n.titleImg : 'logo.png'}')"></div>
+                        <div class="nc-body">
+                            <div class="nc-date">${new Date(n.scheduledAt).toLocaleDateString()} • ${n.tag}</div>
+                            <div class="nc-title">${n.title}</div>
+                            <p style="font-size:0.9rem; color:#64748b; margin-bottom:15px;">${snip}</p>
+                            <div class="nc-link">${n.linkText || 'Read Full Story &rarr;'}</div>
+                        </div>
+                    </div>`;
+                });
+            });
+
+            // 6. DROUGHT
+            fetch(getFresh(`https://api.jsonbin.io/v3/b/${CONFIG.drought}/latest`), {headers:{'X-Master-Key':CONFIG.key}}).then(r=>r.json()).then(d => {
+                document.getElementById('dc-title').innerText = d.record.overview?.title || "";
+                document.getElementById('dc-sum').innerText = d.record.overview?.summary || "";
+                const c = document.getElementById('dc-feed'); c.innerHTML = '';
+                
+                (d.record.alerts||[]).forEach(a => {
+                    c.innerHTML += `
+                    <div class="dc-card">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <strong>${a.region}</strong>
+                            <span class="badge bg-${a.severity}">${a.severity}</span>
+                        </div>
+                        <div class="ac-meta"><div><span class="ac-label">Rain Potential</span>${a.rainPotential}</div><div><span class="ac-label">Expires</span>${new Date(a.endDate).toLocaleDateString()}</div></div>
+                        <p>${a.summary}</p>
+                    </div>`;
+                });
+            });
+        },
+
+        loadArticle: (id) => {
+            const c = document.getElementById('article-content');
+            c.innerHTML = '<p style="text-align:center">Loading article...</p>';
+            
+            // Wait a sec if data isn't loaded yet
+            if(!window.newsData) { setTimeout(() => app.loadArticle(id), 500); return; }
+
+            const art = window.newsData.find(n => (new Date(n.scheduledAt).getTime() == id));
+            
+            if(art) {
+                c.innerHTML = `
+                    <div class="art-header">
+                        <div style="color:#94a3b8; font-size:0.9rem; text-transform:uppercase; font-weight:700; margin-bottom:10px;">${art.tag} • ${new Date(art.scheduledAt).toLocaleDateString()}</div>
+                        <h1 style="font-size:2rem; color:#0f172a; max-width:800px; margin:0 auto;">${art.title}</h1>
+                    </div>
+                    ${art.titleImg && art.titleImg !== 'MOCK_URL' ? `<img src="${art.titleImg}" class="art-img">` : ''}
+                    <div class="art-body">${art.content}</div>
+                `;
+            } else {
+                c.innerHTML = '<p style="text-align:center; color:red;">Article not found.</p>';
+            }
+        }
+    };
+
+    document.addEventListener('DOMContentLoaded', app.init);
+</script>
+</body>
+</html>

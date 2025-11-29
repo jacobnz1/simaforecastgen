@@ -4,423 +4,416 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SIMA Forecast Generator</title>
-    <!-- Tailwind CSS for Layout -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome for Weather Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
-    <!-- html2canvas for downloading -->
     <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
     <style>
-        /* GRAPHIC STYLING - MIMICKING US TV STYLE */
         :root {
             --tv-red: #c8102e;
-            --tv-blue-grad-start: #2c5282;
-            --tv-blue-grad-end: #1a365d;
-            --tv-gray: #e2e8f0;
-            --tv-dark: #1f2937;
+            --tv-blue-dark: #1a365d;
         }
 
-        body { font-family: 'Roboto', sans-serif; background: #111; color: white; }
+        body { 
+            font-family: 'Roboto', sans-serif; 
+            background: #111; 
+            color: white; 
+            margin: 0;
+            overflow: hidden; 
+        }
 
+        /* --- THE GRAPHIC (1280x720 Fixed) --- */
         #capture-area {
             width: 1280px;
             height: 720px;
-            background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); /* Sky Background */
+            background: url('https://images.unsplash.com/photo-1504608524841-42fe6f032b4b?q=80&w=2565&auto=format&fit=crop') no-repeat center center;
+            background-size: cover;
             position: relative;
-            overflow: hidden;
             flex-shrink: 0;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
         }
 
-        /* Top Bar */
+        /* Top Header Bar */
         .top-bar {
+            height: 120px;
+            width: 100%;
             background: white;
-            height: 100px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 0 40px;
-            border-bottom: 4px solid var(--tv-red);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            border-bottom: 8px solid var(--tv-red);
+            box-sizing: border-box;
             z-index: 20;
         }
 
-        .logo-img { height: 80px; object-fit: contain; }
-        
+        .logo-container {
+            width: 300px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+        }
+        .logo-img {
+            max-height: 90px;
+            max-width: 100%;
+            object-fit: contain;
+        }
+
+        /* Title Area - Now allows flexible text fitting */
         .title-text {
             font-family: 'Oswald', sans-serif;
-            font-size: 60px;
+            font-size: 55px; /* Slightly smaller to accommodate city names */
             font-weight: 700;
             text-transform: uppercase;
             color: black;
-            letter-spacing: 2px;
+            text-align: center;
+            flex: 1;
+            line-height: 1.1;
+            padding: 0 20px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .branding-text {
+        .branding-right {
+            width: 250px;
+            text-align: right;
+        }
+        .sima-tag {
             font-family: 'Oswald', sans-serif;
             color: var(--tv-red);
-            font-size: 32px;
+            font-size: 36px;
             font-weight: bold;
         }
 
         /* The Grid */
         .forecast-grid {
             display: flex;
-            flex: 1;
-            height: 100%;
+            width: 100%;
+            height: 600px; 
         }
 
+        /* Day Column */
         .day-column {
             flex: 1;
+            height: 100%;
             display: flex;
             flex-direction: column;
             border-right: 1px solid rgba(255,255,255,0.3);
-            position: relative;
-            background: rgba(44, 82, 130, 0.85); /* The blue backing */
-            backdrop-filter: blur(5px);
+            background: rgba(26, 54, 93, 0.9);
+            box-sizing: border-box;
         }
-
         .day-column:last-child { border-right: none; }
 
-        /* Row 1: Day Name */
-        .day-header {
+        /* --- FIXED ROW HEIGHTS --- */
+        
+        /* 1. Day Name */
+        .row-day {
+            height: 50px;
             background: var(--tv-red);
             color: white;
             font-family: 'Oswald', sans-serif;
             font-size: 32px;
-            font-weight: bold;
+            font-weight: 700;
             text-transform: uppercase;
-            text-align: center;
-            padding: 10px 0;
-            box-shadow: inset 0 -2px 5px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* Row 2: Icon */
-        .icon-area {
-            flex: 2;
+        /* 2. Icon */
+        .row-icon {
+            height: 160px;
             display: flex;
-            justify-content: center;
             align-items: center;
-            padding: 10px;
+            justify-content: center;
         }
         .weather-icon {
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
-            font-size: 80px; /* Fallback size */
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
         }
 
-        /* Row 3: Description / Note */
-        .desc-area {
+        /* 3. Description */
+        .row-desc {
             height: 60px;
             display: flex;
+            align-items: flex-end;
             justify-content: center;
-            align-items: center;
-            text-align: center;
             font-family: 'Oswald', sans-serif;
-            font-weight: bold;
             font-size: 24px;
-            color: white;
-            text-shadow: 1px 1px 2px black;
-            padding: 0 5px;
-            line-height: 1.1;
+            font-weight: 700;
             text-transform: uppercase;
+            color: white;
+            text-shadow: 2px 2px 4px black;
+            padding-bottom: 5px;
+            line-height: 1;
         }
 
-        /* Row 4: Chance of Rain */
-        .pop-area {
+        /* 4. Pop/Rain */
+        .row-pop {
             height: 40px;
             display: flex;
+            align-items: flex-start;
             justify-content: center;
-            align-items: center;
             font-family: 'Roboto', sans-serif;
             font-weight: 900;
-            font-size: 28px;
-            color: white;
+            font-size: 24px;
+            color: #fbbf24;
             text-shadow: 1px 1px 2px black;
         }
 
-        /* Row 5: High Temp (White Box) */
-        .high-temp-area {
-            background: rgba(255,255,255,0.9);
-            flex: 1.5;
+        /* 5. High Temp */
+        .row-high {
+            height: 210px;
+            background: rgba(255,255,255,0.95);
             display: flex;
-            justify-content: center;
             align-items: center;
-            color: black;
+            justify-content: center;
+            color: #222;
             font-family: 'Oswald', sans-serif;
-            font-size: 70px;
+            font-size: 90px;
             font-weight: 700;
-            border-top: 1px solid #999;
+            margin: 0 2px;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
         }
 
-        /* Row 6: Low Temp (Bottom Bar) */
-        .low-temp-area {
-            background: #1a202c; /* Dark footer */
-            height: 60px; /* Mimic the bottom number bar */
+        /* 6. Low Temp */
+        .row-low {
+            height: 80px;
+            background: #111;
             display: flex;
-            justify-content: center;
             align-items: center;
+            justify-content: center;
             color: white;
             font-family: 'Oswald', sans-serif;
-            font-size: 35px;
+            font-size: 45px;
             font-weight: 700;
-            border-top: 4px solid var(--tv-red); /* The accent line */
-        }
-        
-        /* Bottom Branding Strip */
-        .bottom-branding {
-            position: absolute;
-            bottom: 60px; /* Above the low temp bar */
-            left: 0; right: 0;
-            height: 0px; 
-        }
-        
-        /* Floating bottom bar overlay logic like the reference image? 
-           Actually the reference has the Low Temp separate. We will stick to the column layout.
-        */
-
-        .sima-branding {
-            position: absolute;
-            bottom: 70px;
-            left: 10px;
-            background: var(--tv-red);
-            color: white;
-            padding: 5px 15px;
-            font-family: 'Oswald', sans-serif;
-            font-weight: bold;
-            font-size: 18px;
-            z-index: 10;
+            border-top: 5px solid var(--tv-red);
+            box-sizing: border-box;
         }
 
         /* Input Styles */
-        input, select {
-            background: #333;
-            color: white;
-            border: 1px solid #555;
-            padding: 4px;
-            width: 100%;
-            font-size: 12px;
-        }
+        input, select { background-color: #2d3748; border: 1px solid #4a5568; color: white; }
     </style>
 </head>
-<body class="h-screen flex flex-col md:flex-row overflow-hidden">
+<body class="h-screen flex flex-col lg:flex-row">
 
-    <!-- LEFT PANEL: CONTROLS -->
-    <div class="w-full md:w-1/3 bg-gray-900 p-4 overflow-y-auto border-r border-gray-700 custom-scroll">
-        <h2 class="text-2xl font-bold text-red-500 mb-4 font-oswald uppercase">Simulated Weather AI Control</h2>
+    <!-- LEFT CONTROLS -->
+    <div class="w-full lg:w-96 bg-gray-900 p-4 overflow-y-auto border-r border-gray-700 z-50 shadow-2xl h-full flex flex-col">
+        <h1 class="text-2xl font-bold text-white font-oswald mb-4 border-b border-gray-600 pb-2">SIMA <span class="text-red-600">EDITOR</span></h1>
         
-        <!-- Global Settings -->
-        <div class="bg-gray-800 p-3 rounded mb-4">
-            <label class="block text-xs uppercase text-gray-400 mb-1">Auto-Fill City (South Island)</label>
+        <!-- Logo Upload -->
+        <div class="bg-gray-800 p-3 rounded mb-4 border border-gray-600">
+            <label class="text-xs uppercase font-bold text-blue-400"><i class="fas fa-upload mr-1"></i> 1. Upload Logo</label>
+            <input type="file" id="logoInput" accept="image/*" class="w-full text-xs text-gray-400 mt-1">
+        </div>
+
+        <!-- Title & City Search -->
+        <div class="bg-gray-800 p-3 rounded mb-4 border border-gray-600">
+            <label class="text-xs uppercase font-bold text-green-400"><i class="fas fa-search mr-1"></i> 2. Location</label>
+            
+            <!-- Dynamic Title Input -->
+            <input type="text" id="titleInput" value="SOUTH ISLAND 7 DAY PLANNER" class="p-2 w-full text-sm mb-2 font-bold bg-gray-700 border-none rounded" oninput="updateTitle(this.value)">
+            
             <div class="flex gap-2">
-                <input type="text" id="cityInput" placeholder="e.g. Queenstown" class="p-2 rounded text-sm">
-                <button onclick="fetchWeatherData()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Search</button>
+                <input type="text" id="cityInput" placeholder="Enter City for Auto-Fill" class="p-2 w-full text-sm rounded">
+                <button onclick="fetchWeatherData()" class="bg-green-600 text-white px-3 text-sm font-bold rounded">GO</button>
             </div>
-            <p id="loadingMsg" class="text-xs text-yellow-400 mt-2 hidden">Contacting meteorological satellites...</p>
+            <p id="loadingMsg" class="text-xs text-yellow-400 mt-2 hidden animate-pulse">Scanning satellites...</p>
         </div>
 
-        <div class="flex justify-between items-center mb-2">
-            <h3 class="text-lg font-bold">Day-by-Day Editor</h3>
-            <button onclick="downloadImage()" class="bg-green-600 hover:bg-green-500 text-white px-3 py-1 rounded text-sm font-bold">Download Graphic</button>
-        </div>
+        <button onclick="downloadImage()" class="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded font-bold text-lg mb-4 shadow-lg">
+            <i class="fas fa-download mr-2"></i> DOWNLOAD IMAGE
+        </button>
 
-        <!-- Dynamic Form Container -->
-        <div id="controls-container" class="space-y-4">
-            <!-- JavaScript will populate 7 days of controls here -->
-        </div>
+        <div id="controls-container" class="space-y-3 pb-10"></div>
     </div>
 
-    <!-- RIGHT PANEL: PREVIEW -->
-    <div class="w-full md:w-2/3 bg-gray-800 flex items-center justify-center p-4 overflow-auto">
+    <!-- RIGHT PREVIEW AREA -->
+    <div class="flex-1 bg-gray-800 relative overflow-hidden flex items-center justify-center">
         
-        <!-- THE GRAPHIC (CANVAS) -->
-        <div id="capture-area">
+        <!-- Scaled Wrapper -->
+        <div id="preview-wrapper" style="transform: scale(0.65); transform-origin: center;">
             
-            <!-- Top Bar -->
-            <div class="top-bar">
-                <img src="https://i.imgur.com/vHq4c6t.png" alt="Logo" class="logo-img">
-                <div class="title-text">7 DAY PLANNER</div>
-                <div class="branding-text">sima.co.nz</div>
-            </div>
+            <!-- THE 1280x720 GRAPHIC -->
+            <div id="capture-area">
+                
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="logo-container">
+                        <img id="display-logo" src="https://cdn-icons-png.flaticon.com/512/3752/3752695.png" alt="Logo" class="logo-img">
+                    </div>
+                    <div class="title-text" id="graphic-title">SOUTH ISLAND 7 DAY PLANNER</div>
+                    <div class="branding-right">
+                        <div class="sima-tag">sima.co.nz</div>
+                    </div>
+                </div>
 
-            <!-- The 7 Columns -->
-            <div class="forecast-grid" id="graphic-grid">
-                <!-- JavaScript renders columns here -->
-            </div>
+                <!-- Forecast Grid -->
+                <div class="forecast-grid" id="graphic-grid">
+                    <!-- Columns injected by JS -->
+                </div>
 
+            </div>
         </div>
     </div>
 
     <script>
-        // State for the 7 days
+        // --- CONFIGURATION ---
         const daysData = Array.from({ length: 7 }, (_, i) => {
             const date = new Date();
             date.setDate(date.getDate() + i);
             const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-            return {
-                day: days[date.getDay()],
-                icon: 'sun',
-                desc: 'Sunny',
-                pop: '',
-                high: 20 + i,
-                low: 10 + i
-            };
+            return { day: days[date.getDay()], icon: 'sun', desc: 'FINE', pop: '', high: 22, low: 14 };
         });
 
-        // Icon Map for Dropdown and API
         const iconMap = {
             'sun': { src: 'https://cdn-icons-png.flaticon.com/512/869/869869.png', label: 'Sunny' },
             'partly-cloudy': { src: 'https://cdn-icons-png.flaticon.com/512/1163/1163624.png', label: 'Partly Cloudy' },
             'cloudy': { src: 'https://cdn-icons-png.flaticon.com/512/414/414825.png', label: 'Cloudy' },
             'rain': { src: 'https://cdn-icons-png.flaticon.com/512/1163/1163657.png', label: 'Rain' },
+            'heavy-rain': { src: 'https://cdn-icons-png.flaticon.com/512/2469/2469994.png', label: 'Heavy Rain' },
             'storm': { src: 'https://cdn-icons-png.flaticon.com/512/1146/1146860.png', label: 'Storm' },
             'snow': { src: 'https://cdn-icons-png.flaticon.com/512/642/642102.png', label: 'Snow' },
             'wind': { src: 'https://cdn-icons-png.flaticon.com/512/959/959711.png', label: 'Windy' },
             'fog': { src: 'https://cdn-icons-png.flaticon.com/512/4005/4005901.png', label: 'Fog' }
         };
 
-        // Initialize
+        // --- INIT ---
         function init() {
             renderControls();
             renderGraphic();
+            
+            // Logo Logic
+            document.getElementById('logoInput').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => document.getElementById('display-logo').src = e.target.result;
+                    reader.readAsDataURL(file);
+                }
+            });
         }
 
-        // Render the Edit Inputs
+        // --- TITLE UPDATE ---
+        window.updateTitle = function(val) {
+            document.getElementById('graphic-title').innerText = val;
+        }
+
+        // --- RENDER CONTROLS (Left Panel) ---
         function renderControls() {
             const container = document.getElementById('controls-container');
             container.innerHTML = '';
-
             daysData.forEach((data, index) => {
                 const div = document.createElement('div');
-                div.className = 'bg-gray-800 p-3 rounded border border-gray-700';
+                div.className = 'bg-gray-800 p-2 rounded border border-gray-600 shadow-sm';
                 div.innerHTML = `
-                    <div class="flex items-center justify-between mb-2">
-                        <input type="text" value="${data.day}" class="font-bold w-12 text-center bg-red-900" oninput="updateData(${index}, 'day', this.value)">
-                        <select onchange="updateData(${index}, 'icon', this.value)" class="w-32">
-                            ${Object.keys(iconMap).map(key => `<option value="${key}" ${data.icon === key ? 'selected' : ''}>${iconMap[key].label}</option>`).join('')}
+                    <div class="flex justify-between mb-1">
+                        <input type="text" value="${data.day}" class="w-10 text-center font-bold bg-red-900 rounded" oninput="update(${index}, 'day', this.value)">
+                        <select onchange="update(${index}, 'icon', this.value)" class="w-28 text-xs rounded">
+                            ${Object.keys(iconMap).map(k => `<option value="${k}" ${data.icon===k?'selected':''}>${iconMap[k].label}</option>`).join('')}
                         </select>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <input type="text" value="${data.desc}" placeholder="Condition" oninput="updateData(${index}, 'desc', this.value)">
-                        <input type="text" value="${data.pop}" placeholder="Rain % / Acc." oninput="updateData(${index}, 'pop', this.value)">
+                    <div class="flex gap-1 mb-1">
+                        <input type="text" value="${data.desc}" class="w-1/2 text-xs rounded px-1" oninput="update(${index}, 'desc', this.value)">
+                        <input type="text" value="${data.pop}" placeholder="Rain" class="w-1/2 text-xs rounded px-1 text-yellow-400" oninput="update(${index}, 'pop', this.value)">
                     </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="flex items-center gap-1"><span class="text-xs text-red-400">H</span> <input type="number" value="${data.high}" oninput="updateData(${index}, 'high', this.value)"></div>
-                        <div class="flex items-center gap-1"><span class="text-xs text-blue-400">L</span> <input type="number" value="${data.low}" oninput="updateData(${index}, 'low', this.value)"></div>
+                    <div class="flex gap-1">
+                        <input type="number" value="${data.high}" class="w-1/2 text-center font-bold rounded bg-gray-700" oninput="update(${index}, 'high', this.value)">
+                        <input type="number" value="${data.low}" class="w-1/2 text-center font-bold rounded bg-gray-700 text-blue-300" oninput="update(${index}, 'low', this.value)">
                     </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        // Render the TV Graphic
+        // --- RENDER GRAPHIC (Right Panel) ---
         function renderGraphic() {
             const grid = document.getElementById('graphic-grid');
             grid.innerHTML = '';
-
             daysData.forEach((data) => {
                 const col = document.createElement('div');
                 col.className = 'day-column';
                 col.innerHTML = `
-                    <div class="day-header">${data.day}</div>
-                    <div class="icon-area">
-                        <img src="${iconMap[data.icon].src}" class="weather-icon">
-                    </div>
-                    <div class="desc-area">${data.desc}</div>
-                    <div class="pop-area">${data.pop}</div>
-                    <div class="high-temp-area">${data.high}°</div>
-                    <div class="low-temp-area">${data.low}°</div>
+                    <div class="row-day">${data.day}</div>
+                    <div class="row-icon"><img src="${iconMap[data.icon].src}" class="weather-icon"></div>
+                    <div class="row-desc">${data.desc}</div>
+                    <div class="row-pop">${data.pop}</div>
+                    <div class="row-high">${data.high}°</div>
+                    <div class="row-low">${data.low}°</div>
                 `;
                 grid.appendChild(col);
             });
         }
 
-        // Update State
-        window.updateData = function(index, field, value) {
+        window.update = function(index, field, value) {
             daysData[index][field] = value;
-            renderGraphic(); // Re-render graphic, don't re-render controls to keep focus
+            renderGraphic();
         }
 
-        // --- FETCH REAL DATA (Simulating Google Weather AI via Open-Meteo) ---
+        // --- API FETCH ---
         async function fetchWeatherData() {
             const city = document.getElementById('cityInput').value;
-            if(!city) return alert("Please enter a city.");
-
-            const loader = document.getElementById('loadingMsg');
-            loader.style.display = 'block';
-
+            if(!city) return;
+            document.getElementById('loadingMsg').style.display = 'block';
+            
             try {
-                // 1. Geocoding
-                const geoReq = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`);
-                const geoRes = await geoReq.json();
-
-                if(!geoRes.results) throw new Error("City not found");
+                const gRes = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${city}&count=1&language=en&format=json`).then(r=>r.json());
+                if(!gRes.results) throw new Error('City not found');
+                const { latitude, longitude, name } = gRes.results[0];
                 
-                const { latitude, longitude, name } = geoRes.results[0];
+                // UPDATE TITLE AUTOMATICALLY
+                const newTitle = `${name.toUpperCase()} 7 DAY PLANNER`;
+                document.getElementById('titleInput').value = newTitle;
+                updateTitle(newTitle);
 
-                // 2. Weather Data
-                const weatherReq = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`);
-                const weatherRes = await weatherReq.json();
+                const wRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=auto`).then(r=>r.json());
                 
-                const daily = weatherRes.daily;
+                const d = wRes.daily;
                 const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-                // Update State
                 for(let i=0; i<7; i++) {
-                    const date = new Date(daily.time[i]);
+                    const date = new Date(d.time[i]);
                     daysData[i].day = days[date.getDay()];
-                    daysData[i].high = Math.round(daily.temperature_2m_max[i]);
-                    daysData[i].low = Math.round(daily.temperature_2m_min[i]);
+                    daysData[i].high = Math.round(d.temperature_2m_max[i]);
+                    daysData[i].low = Math.round(d.temperature_2m_min[i]);
+                    daysData[i].pop = d.precipitation_probability_max[i] > 25 ? d.precipitation_probability_max[i]+'%' : '';
                     
-                    // Rain Chance
-                    const prob = daily.precipitation_probability_max[i];
-                    daysData[i].pop = prob > 20 ? `${prob}%` : '';
-
-                    // Map WMO Codes to our Icons & Text
-                    const code = daily.weathercode[i];
-                    const condition = mapWmoCode(code);
-                    daysData[i].icon = condition.icon;
-                    daysData[i].desc = condition.desc;
+                    const code = d.weathercode[i];
+                    if(code === 0) { daysData[i].icon='sun'; daysData[i].desc='FINE'; }
+                    else if(code <= 3) { daysData[i].icon='partly-cloudy'; daysData[i].desc='CLOUDY'; }
+                    else if(code >= 51 && code <= 67) { daysData[i].icon='rain'; daysData[i].desc='RAIN'; }
+                    else if(code >= 80 && code <= 82) { daysData[i].icon='heavy-rain'; daysData[i].desc='HEAVY'; }
+                    else if(code >= 95) { daysData[i].icon='storm'; daysData[i].desc='STORM'; }
+                    else { daysData[i].icon='cloudy'; daysData[i].desc='CLOUDY'; }
                 }
-
                 renderControls();
                 renderGraphic();
-
-            } catch (err) {
-                alert("Could not fetch weather data. " + err.message);
-            } finally {
-                loader.style.display = 'none';
-            }
+            } catch(e) { alert(e.message); }
+            document.getElementById('loadingMsg').style.display = 'none';
         }
 
-        // Helper: Map WMO codes to our simplified set
-        function mapWmoCode(code) {
-            // WMO Weather interpretation codes (https://open-meteo.com/en/docs)
-            if (code === 0) return { icon: 'sun', desc: 'Sunny' };
-            if (code >= 1 && code <= 3) return { icon: 'partly-cloudy', desc: 'Clouds' };
-            if (code === 45 || code === 48) return { icon: 'fog', desc: 'Foggy' };
-            if (code >= 51 && code <= 55) return { icon: 'rain', desc: 'Drizzle' };
-            if (code >= 61 && code <= 65) return { icon: 'rain', desc: 'Rain' };
-            if (code >= 80 && code <= 82) return { icon: 'rain', desc: 'Showers' };
-            if (code >= 71 && code <= 77) return { icon: 'snow', desc: 'Snow' };
-            if (code >= 85 && code <= 86) return { icon: 'snow', desc: 'Snow' };
-            if (code >= 95) return { icon: 'storm', desc: 'Storm' };
-            return { icon: 'cloudy', desc: 'Cloudy' };
-        }
-
-        // Download Function
+        // --- DOWNLOAD ---
         window.downloadImage = function() {
-            const captureArea = document.getElementById('capture-area');
-            html2canvas(captureArea, { scale: 1 }).then(canvas => {
+            const element = document.getElementById('capture-area');
+            html2canvas(element, {
+                scale: 1, 
+                width: 1280,
+                height: 720,
+                windowWidth: 1280,
+                windowHeight: 720,
+                useCORS: true, 
+                backgroundColor: null
+            }).then(canvas => {
                 const link = document.createElement('a');
                 link.download = 'SIMA_Forecast.png';
-                link.href = canvas.toDataURL();
+                link.href = canvas.toDataURL('image/png');
                 link.click();
             });
         }
